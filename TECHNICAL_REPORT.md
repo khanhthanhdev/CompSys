@@ -1,0 +1,622 @@
+# Technical Report: FTC Tournament Management System (RMS)
+
+**Student:** [Your Name]  
+**Student ID:** [Your ID]  
+**Course:** [Course Name]  
+**Date:** 2026-04-01
+
+---
+
+## Table of Contents
+
+1. [Introduction](#1-introduction)
+2. [Project Overview](#2-project-overview)
+3. [System Design](#3-system-design)
+   - [3.1 Overall Flowchart](#31-overall-flowchart)
+   - [3.2 Module Architecture](#32-module-architecture)
+   - [3.3 Algorithms](#33-algorithms)
+   - [3.4 Implementation](#34-implementation)
+4. [Testing](#4-testing)
+5. [Requirements Mapping](#5-requirements-mapping)
+6. [Conclusion](#6-conclusion)
+
+---
+
+## 1. Introduction
+
+The FTC Tournament Management System (RMS) is a console-based C application designed to manage robotics tournament operations. The system handles team registration, match scheduling, score entry, and live rankings calculation. All data is persisted using CSV files for portability and human readability.
+
+**Key Features:**
+- Import teams from CSV files
+- Load and manage match schedules
+- Enter match scores with real-time ranking updates
+- View match schedules and results
+- Export final rankings to CSV
+
+---
+
+## 2. Project Overview
+
+### 2.1 Objectives
+
+- Implement a complete tournament management workflow
+- Use dynamic memory allocation for all data structures
+- Implement a FIFO queue using linked lists
+- Perform file I/O operations (read, write, append)
+- Create a modular, maintainable codebase
+
+### 2.2 Constraints
+
+- Console-based interface only (no GUI)
+- Single-user operation
+- Flat-file storage (CSV format)
+- No network or database connectivity
+
+---
+
+## 3. System Design
+
+### 3.1 Overall Flowchart
+
+**Fig 1: System Flow from Start to Exit**
+
+```mermaid
+flowchart TD
+    Start([Program Start]) --> Init[Initialize variables<br/>teams=NULL, matches=NULL<br/>Init queue]
+    Init --> Welcome[Print welcome message]
+    Welcome --> Menu[Display Main Menu]
+    
+    Menu --> GetChoice{Get user choice}
+    
+    GetChoice -->|1: Import Teams| LoadTeams[Load teams.csv<br/>Create Team* linked list]
+    LoadTeams --> Menu
+    
+    GetChoice -->|2: Import Schedule| LoadMatches[Load matches.csv<br/>Build pending queue]
+    LoadMatches --> Menu
+    
+    GetChoice -->|3: Play Match| PlayMatch{Queue empty?}
+    PlayMatch -->|Yes| MsgNoMatch[Show: All matches played]
+    PlayMatch -->|No| Dequeue[Dequeue match<br/>Enter scores<br/>Update team stats]
+    MsgNoMatch --> Menu
+    Dequeue --> Menu
+    
+    GetChoice -->|4: View Schedule| ViewSched[Display all matches<br/>with status/results]
+    ViewSched --> Menu
+    
+    GetChoice -->|5: View Rankings| ViewRank[Sort teams by RP<br/>Display standings]
+    ViewRank --> Menu
+    
+    GetChoice -->|6: Export| Export[Save rankings.csv]
+    Export --> Menu
+    
+    GetChoice -->|7: Exit| SaveAll[Save teams.csv<br/>Save matches.csv]
+    SaveAll --> FreeMem[Free all memory<br/>teams, matches, queue]
+    FreeMem --> End([Program End])
+    
+    GetChoice -->|Invalid| MsgErr[Show: Invalid option]
+    MsgErr --> Menu
+```
+
+---
+
+### 3.2 Module Architecture
+
+**Fig 2: Module Interaction Diagram**
+
+```mermaid
+flowchart TB
+    subgraph Header["Header File"]
+        H[tournament.h<br/>Structs, Enums, Constants<br/>Function Declarations]
+    end
+    
+    subgraph Source["Source Files"]
+        MAIN[main.c<br/>Entry Point<br/>Menu Loop]
+        TEAM[team.c<br/>Team Management]
+        MATCH[match.c<br/>Match Management]
+        QUEUE[queue.c<br/>FIFO Queue]
+        RANK[ranking.c<br/>Sorting & Display]
+        FILEIO[file_io.c<br/>CSV Read/Write]
+    end
+    
+    subgraph Data["Data Files"]
+        TC[(teams.csv)]
+        MC[(matches.csv)]
+        RC[(results.csv)]
+        KC[(rankings.csv)]
+    end
+    
+    H --> MAIN
+    H --> TEAM
+    H --> MATCH
+    H --> QUEUE
+    H --> RANK
+    H --> FILEIO
+    
+    MAIN --> TEAM
+    MAIN --> MATCH
+    MAIN --> QUEUE
+    MAIN --> RANK
+    
+    TEAM <--> FILEIO
+    MATCH <--> FILEIO
+    MATCH --> QUEUE
+    MATCH --> TEAM
+    RANK --> TEAM
+    
+    FILEIO <--> TC
+    FILEIO <--> MC
+    FILEIO --> RC
+    FILEIO --> KC
+```
+
+**File Descriptions:**
+
+| File | Purpose | Key Functions |
+|------|---------|---------------|
+| `tournament.h` | Shared header with types and declarations | All structs, enums, function prototypes |
+| `main.c` | Program entry point, menu loop | `main()`, `print_menu()` |
+| `team.c` | Team linked list operations | `team_create()`, `team_find()`, `team_update_stats()` |
+| `match.c` | Match linked list operations | `match_create()`, `match_enter_score()`, `match_print_all()` |
+| `queue.c` | FIFO queue for pending matches | `queue_init()`, `queue_enqueue()`, `queue_dequeue()` |
+| `ranking.c` | Sorting and display | `ranking_sort()`, `ranking_display()` |
+| `file_io.c` | CSV file operations | `file_load_teams()`, `file_save_matches()`, `file_append_result()` |
+
+---
+
+### 3.3 Algorithms
+
+#### Algorithm 1: Team Search (Linear Search on Linked List)
+
+**Fig 3.1: team_find()**
+
+```
+FUNCTION team_find(head, target_id):
+    curr ← head
+    WHILE curr is not NULL:
+        IF curr.id equals target_id:
+            RETURN curr
+        curr ← curr.next
+    RETURN NULL
+```
+
+- **Time Complexity:** O(n) where n = number of teams
+- **Space Complexity:** O(1)
+- **Location:** `team.c` lines 12-19
+
+---
+
+#### Algorithm 2: Ranking Sort (qsort with Custom Comparator)
+
+**Fig 3.2: ranking_sort()**
+
+```
+FUNCTION compare_teams(a, b):
+    ta ← Team pointer from a
+    tb ← Team pointer from b
+    
+    IF tb.ranking_points not equal ta.ranking_points:
+        RETURN tb.rp - ta.rp       // Higher RP first
+    
+    IF tb.total_score not equal ta.total_score:
+        RETURN tb.score - ta.score // Higher score first
+    
+    RETURN ta.id - tb.id           // Lower ID first (tiebreaker)
+
+FUNCTION ranking_sort(head, count):
+    count ← 0
+    curr ← head
+    WHILE curr is not NULL:
+        count ← count + 1
+        curr ← curr.next
+    
+    IF count equals 0:
+        RETURN NULL
+    
+    arr ← MALLOC(count × sizeof(Team*))
+    i ← 0
+    curr ← head
+    WHILE curr is not NULL:
+        arr[i] ← curr
+        i ← i + 1
+        curr ← curr.next
+    
+    QSORT(arr, count, sizeof(Team*), compare_teams)
+    RETURN arr
+```
+
+- **Time Complexity:** O(n log n) for sorting
+- **Space Complexity:** O(n) for the array
+- **Location:** `ranking.c` lines 3-36
+
+---
+
+#### Algorithm 3: Queue Enqueue (FIFO Insertion)
+
+**Fig 3.3: queue_enqueue()**
+
+```
+FUNCTION queue_enqueue(q, match):
+    node ← MALLOC(sizeof(QueueNode))
+    node.match ← match
+    node.next ← NULL
+    
+    IF q.rear is not NULL:
+        q.rear.next ← node
+    ELSE:
+        q.front ← node
+    
+    q.rear ← node
+    q.size ← q.size + 1
+```
+
+- **Time Complexity:** O(1)
+- **Space Complexity:** O(1) per node
+- **Location:** `queue.c` lines 9-22
+
+---
+
+#### Algorithm 4: Queue Dequeue (FIFO Removal)
+
+**Fig 3.4: queue_dequeue()**
+
+```
+FUNCTION queue_dequeue(q):
+    IF q.front is NULL:
+        RETURN NULL
+    
+    node ← q.front
+    match ← node.match
+    q.front ← node.next
+    
+    IF q.front is NULL:
+        q.reear ← NULL
+    
+    FREE node
+    q.size ← q.size - 1
+    RETURN match
+```
+
+- **Time Complexity:** O(1)
+- **Space Complexity:** O(1)
+- **Location:** `queue.c` lines 24-37
+
+---
+
+#### Algorithm 5: Update Team Stats
+
+**Fig 3.5: team_update_stats()**
+
+```
+FUNCTION team_update_stats(team, my_score, opp_score):
+    IF team is NULL:
+        RETURN
+    
+    team.matches_played ← team.matches_played + 1
+    team.total_score ← team.total_score + my_score
+    
+    IF my_score > opp_score:
+        team.wins ← team.wins + 1
+        team.ranking_points ← team.ranking_points + 3
+    ELSE IF my_score equals opp_score:
+        team.ties ← team.ties + 1
+        team.ranking_points ← team.ranking_points + 1
+    ELSE:
+        team.losses ← team.losses + 1
+        team.ranking_points ← team.ranking_points + 0
+```
+
+- **Time Complexity:** O(1)
+- **Space Complexity:** O(1)
+- **Location:** `team.c` lines 31-45
+
+---
+
+#### Algorithm 6: Load Teams from CSV
+
+**Fig 3.6: file_load_teams()**
+
+```
+FUNCTION file_load_teams(path, count):
+    file ← OPEN(path, "r")
+    IF file is NULL:
+        RETURN NULL
+    
+    head ← NULL, tail ← NULL
+    count ← 0
+    SKIP header line
+    
+    WHILE NOT EOF:
+        READ line
+        PARSE id, name FROM line
+        IF parse successful:
+            t ← team_create(id, name)
+            IF head is NULL:
+                head ← t, tail ← t
+            ELSE:
+                tail.next ← t
+                tail ← t
+            count ← count + 1
+    
+    CLOSE file
+    RETURN head
+```
+
+- **Time Complexity:** O(n) where n = number of rows
+- **Space Complexity:** O(n) for all team nodes
+- **Location:** `file_io.c` lines 3-40
+
+---
+
+### 3.4 Implementation
+
+#### Memory Allocation (malloc/calloc)
+
+All dynamic data structures use heap allocation:
+
+```c
+// team.c line 4: Team creation
+Team *t = (Team *)calloc(1, sizeof(Team));
+
+// match.c line 4: Match creation  
+Match *m = (Match *)calloc(1, sizeof(Match));
+
+// queue.c line 10: Queue node allocation
+QueueNode *node = (QueueNode *)malloc(sizeof(QueueNode));
+
+// ranking.c line 24: Array for sorting
+Team **arr = (Team **)malloc(*count * sizeof(Team *));
+```
+
+---
+
+#### Memory Deallocation (free)
+
+All allocated memory is freed before program exit:
+
+```c
+// team.c lines 47-54: Free team list
+void team_free_list(Team *head) {
+    Team *curr = head;
+    while (curr) {
+        Team *next = curr->next;
+        free(curr);
+        curr = next;
+    }
+}
+
+// queue.c lines 58-66: Free queue
+void queue_free(MatchQueue *q) {
+    while (q->front) {
+        QueueNode *node = q->front;
+        q->front = node->next;
+        free(node);
+    }
+}
+
+// main.c lines 88-90: Cleanup on exit
+team_free_list(teams);
+match_free_list(matches);
+queue_free(&queue);
+```
+
+---
+
+#### File I/O Operations
+
+```c
+// file_io.c lines 3-40: Read teams from CSV
+Team *file_load_teams(const char *path, int *count) {
+    FILE *f = fopen(path, "r");
+    // ... read and parse ...
+    fclose(f);
+    return head;
+}
+
+// file_io.c lines 42-55: Write teams to CSV
+void file_save_teams(Team *head, const char *path) {
+    FILE *f = fopen(path, "w");
+    fprintf(f, "team_id,team_name,rp,wins,ties,losses,total_score\n");
+    // ... write each team ...
+    fclose(f);
+}
+
+// file_io.c lines 128-138: Append match result
+void file_append_result(const char *path, int match_num, ...) {
+    FILE *f = fopen(path, "a");
+    if (!f) {
+        f = fopen(path, "w");
+        fprintf(f, "header...\n");
+    }
+    fprintf(f, "%d,%d,%d,%d,%d,%s\n", ...);
+    fclose(f);
+}
+```
+
+---
+
+#### Linked List Operations
+
+```c
+// Singly linked list traversal (team.c lines 12-19)
+Team *team_find(Team *head, int id) {
+    Team *curr = head;
+    while (curr) {
+        if (curr->id == id) return curr;
+        curr = curr->next;
+    }
+    return NULL;
+}
+
+// Queue using linked list (queue.c lines 9-22)
+void queue_enqueue(MatchQueue *q, Match *m) {
+    QueueNode *node = malloc(sizeof(QueueNode));
+    node->match = m;
+    node->next = NULL;
+    if (q->rear) {
+        q->rear->next = node;
+    } else {
+        q->front = node;
+    }
+    q->rear = node;
+    q->size++;
+}
+```
+
+---
+
+## 4. Testing
+
+### 4.1 Test Cases
+
+| Test ID | Feature | Input | Expected Output | Status |
+|---------|---------|-------|-----------------|--------|
+| TC-01 | Import Teams | Option 1, valid teams.csv | "Loaded N teams" | PASS |
+| TC-02 | Import Teams | Option 1, missing file | "Warning: Cannot open..." | PASS |
+| TC-03 | Import Schedule | Option 2, valid matches.csv | "Loaded N matches (X pending)" | PASS |
+| TC-04 | Play Match | Option 3, teams not loaded | "No teams loaded..." | PASS |
+| TC-05 | Play Match | Option 3, empty queue | "All matches have been played" | PASS |
+| TC-06 | Play Match | Option 3, valid scores | "Score recorded" | PASS |
+| TC-07 | View Schedule | Option 4 | Display all matches with status | PASS |
+| TC-08 | View Rankings | Option 5 | Display sorted standings | PASS |
+| TC-09 | Export Rankings | Option 6 | "Rankings exported to..." | PASS |
+| TC-10 | Exit | Option 7 | "Goodbye!" + files saved | PASS |
+| TC-11 | Invalid Input | Non-numeric menu choice | "Invalid input. Please enter a number." | PASS |
+| TC-12 | Invalid Option | Menu choice 99 | "Invalid option." | PASS |
+
+---
+
+### 4.2 Sample Test Execution
+
+**Test: Import Teams (TC-01)**
+```
+$ ./tournament
+Welcome to FTC Tournament Manager!
+
+========================================
+   FTC TOURNAMENT MANAGEMENT SYSTEM
+========================================
+ [1] Import Teams from CSV
+ [2] Import Match Schedule from CSV
+ [3] Play Next Match (Enter Scores)
+ [4] View Match Schedule & Results
+ [5] View Rankings
+ [6] Export Rankings to CSV
+ [7] Exit
+========================================
+Select option: 1
+Loaded 10 teams.
+```
+
+**Test: Play Match (TC-06)**
+```
+Select option: 3
+Match 1: Red Dragons (RED) vs Blue Thunder (BLUE)
+Enter RED score: 100
+Enter BLUE score: 56
+Score recorded.
+```
+
+**Test: View Rankings (TC-08)**
+```
+Select option: 5
+
+Rank   Team ID  Name                 RP    W     T    L     Total Score
+============================================================================
+1      1001     Red Dragons          3     1     0    0     100
+2      1002     Blue Thunder         0     0     0    1     56
+...
+```
+
+**Test: Invalid Input (TC-11)**
+```
+Select option: abc
+Invalid input. Please enter a number.
+```
+
+---
+
+## 5. Requirements Mapping
+
+### 5.1 Academic Requirements
+
+| Requirement | Implementation | Location |
+|-------------|----------------|----------|
+| **Dynamic Memory (malloc/calloc)** | `calloc()` for Team, Match; `malloc()` for QueueNode, sorting array | `team.c:4`, `match.c:4`, `queue.c:10`, `ranking.c:24` |
+| **Memory Deallocation (free)** | `team_free_list()`, `match_free_list()`, `queue_free()`, `ranking_free_sorted()` | `team.c:47-54`, `match.c:79-86`, `queue.c:58-66` |
+| **Singly Linked List** | Team*, Match* use `next` pointer | `tournament.h:43,53` |
+| **Queue (FIFO) using Linked List** | MatchQueue with front/rear pointers | `queue.c:9-37` |
+| **File I/O - Read** | `fopen("r")`, `fgets()`, `sscanf()` | `file_io.c:3-40`, `file_io.c:57-97` |
+| **File I/O - Write** | `fopen("w")`, `fprintf()` | `file_io.c:42-55`, `file_io.c:99-112` |
+| **File I/O - Append** | `fopen("a")` with fallback to create | `file_io.c:128-138` |
+| **Sorting Algorithm** | `qsort()` with custom comparator | `ranking.c:14-36` |
+| **Search Algorithm** | Linear search on linked list | `team.c:12-19`, `match.c:13-20` |
+| **Multiple Modules** | 6 source files + 1 header | `src/*.c`, `include/tournament.h` |
+| **Makefile Build** | `gcc -Wall -Wextra` compilation | `Makefile` |
+
+---
+
+### 5.2 Code Statistics
+
+| Metric | Value |
+|--------|-------|
+| Total Lines of Code | ~600+ |
+| Number of Source Files | 6 (.c files) |
+| Number of Header Files | 1 (.h file) |
+| Number of Functions | 25+ |
+| Dynamic Allocations | 4 (Team, Match, QueueNode, Team**) |
+
+---
+
+## 6. Conclusion
+
+The FTC Tournament Management System successfully demonstrates:
+
+1. **Dynamic Memory Management** - All data structures are heap-allocated and properly freed
+2. **Data Structures** - Singly linked lists for teams/matches, FIFO queue for match scheduling
+3. **File Persistence** - CSV read/write/append operations for data storage
+4. **Modular Design** - Clean separation of concerns across 6 source files
+5. **User Interface** - Intuitive menu-driven console interface
+
+The system provides a complete tournament management workflow suitable for FTC-style robotics competitions with minimal resource requirements.
+
+---
+
+## Appendix A: Build Instructions
+
+```bash
+# Build the project
+cd rms_project
+make
+
+# Run the program
+./tournament
+
+# Clean build artifacts
+make clean
+```
+
+## Appendix B: File Formats
+
+**teams.csv:**
+```csv
+team_id,team_name,rp,wins,ties,losses,total_score
+1001,Red Dragons,9,3,0,0,312
+```
+
+**matches.csv:**
+```csv
+match_num,red_team_id,blue_team_id,red_score,blue_score,status
+1,1001,1002,100,56,1
+```
+
+**results.csv:**
+```csv
+match_num,red_team_id,blue_team_id,red_score,blue_score,winner
+1,1001,1002,100,56,RED
+```
+
+**rankings.csv:**
+```csv
+rank,team_id,team_name,rp,wins,ties,losses,total_score
+1,1001,Red Dragons,9,3,0,0,312
+```

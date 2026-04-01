@@ -103,69 +103,418 @@ typedef struct {
 
 ---
 
-## Workflow Diagram
+## Workflow Diagrams
 
+### High-Level Architecture
+
+```mermaid
+flowchart LR
+    subgraph User["User Actions"]
+        Menu[Main Menu]
+    end
+    
+    subgraph Modules["Modules"]
+        Teams[Teams]
+        Matches[Matches]
+        Queue[Queue]
+        Ranking[Ranking]
+    end
+    
+    subgraph Files["Files"]
+        T[(teams.csv)]
+        M[(matches.csv)]
+        R[(results.csv)]
+        K[(rankings.csv)]
+    end
+    
+    Menu --> Teams
+    Menu --> Matches
+    Menu --> Queue
+    Menu --> Ranking
+    
+    Teams <--> T
+    Matches <--> M
+    Matches --> R
+    Ranking --> K
+    Queue --> Matches
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           FTC TOURNAMENT SYSTEM                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              MAIN MENU LOOP                                 │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  [1] Import Teams    │  [2] Import Schedule  │  [3] Play Match     │   │
-│  │  [4] View Schedule   │  [5] View Rankings    │  [6] Export CSV     │   │
-│  │  [7] Exit                                                               │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────────┐
-│  LOAD TEAMS     │  │  LOAD MATCHES   │  │      PLAY MATCH FLOW        │
-│  file_io.c      │  │  file_io.c      │  │                             │
-│                 │  │                 │  │  1. Dequeue next match      │
-│  Read CSV ──────┤  │  Read CSV ──────┤  │  2. Display teams           │
-│  Parse rows     │  │  Parse rows     │  │  3. Enter scores            │
-│  Create Team*   │  │  Create Match*  │  │  4. Determine winner        │
-│  Link list      │  │  Build queue    │  │  5. Update team stats       │
-│                 │  │                 │  │  6. Append to results.csv   │
-└─────────────────┘  └─────────────────┘  └─────────────────────────────┘
-         │                    │                    │
-         │                    │                    ▼
-         │                    │         ┌─────────────────────────────┐
-         │                    │         │      UPDATE TEAM STATS      │
-         │                    │         │                             │
-         │                    │         │  For each team:             │
-         │                    │         │  - Add RP (3/1/0)           │
-         │                    │         │  - Update W-T-L             │
-         │                    │         │  - Add to total_score       │
-         │                    │         └─────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           DATA PERSISTENCE                                  │
-│                                                                             │
-│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│   │  teams.csv   │  │ matches.csv  │  │ results.csv  │  │ rankings.csv │  │
-│   │  (Read/Write)│  │ (Read/Write) │  │  (Append)    │  │   (Write)    │  │
-│   └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              VIEW & EXPORT                                  │
-│                                                                             │
-│   ┌─────────────────────┐           ┌─────────────────────────────────┐    │
-│   │  VIEW SCHEDULE      │           │      VIEW RANKINGS              │    │
-│   │  ─────────────      │           │      ────────────               │    │
-│   │  Match | Red | Blue │           │      Rank | Team | RP | W-T-L   │    │
-│   │    1   | 101 | 102  │           │      ─────────────────────────  │    │
-│   │   Score | Status    │           │      Sort by:                   │    │
-│   │   ? - ? | PENDING   │           │      1. Ranking Points (desc)   │    │
-│   │  45-32  | PLAYED    │           │      2. Total Score (desc)      │    │
-│   └─────────────────────┘           └─────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────────────────┘
+
+---
+
+### 1. Import Teams
+
+```mermaid
+flowchart TD
+    Start([User selects Import Teams]) --> OpenFile[Open teams.csv]
+    OpenFile --> SkipHeader[Skip header row]
+    SkipHeader --> ReadRow[Read next row]
+    ReadRow --> MoreRows{More rows?}
+    
+    MoreRows -->|Yes| CreateTeam[Create new Team object]
+    CreateTeam --> AddToList[Add to teams list]
+    AddToList --> ReadRow
+    
+    MoreRows -->|No| CloseFile[Close file]
+    CloseFile --> ShowCount[Show: "Loaded N teams"]
+    ShowCount --> Done([Return to Menu])
+```
+
+---
+
+### 2. Import Match Schedule
+
+```mermaid
+flowchart TD
+    Start([User selects Import Schedule]) --> OpenFile[Open matches.csv]
+    OpenFile --> SkipHeader[Skip header row]
+    SkipHeader --> ReadRow[Read next row]
+    ReadRow --> MoreRows{More rows?}
+    
+    MoreRows -->|Yes| CreateMatch[Create new Match object]
+    CreateMatch --> CheckStatus{Match played?}
+    
+    CheckStatus -->|No - Pending| AddToQueue[Add to match queue]
+    CheckStatus -->|Yes - Played| Skip[Skip]
+    
+    AddToQueue --> ReadRow
+    Skip --> ReadRow
+    
+    MoreRows -->|No| CloseFile[Close file]
+    CloseFile --> ShowCount[Show: "Loaded N matches"]
+    ShowCount --> Done([Return to Menu])
+```
+
+---
+
+### 3. Play Next Match
+
+```mermaid
+flowchart TD
+    Start([User selects Play Match]) --> CheckTeams{Teams loaded?}
+    
+    CheckTeams -->|No| ShowErr[Show: "Load teams first"]
+    ShowErr --> Done([Return to Menu])
+    
+    CheckTeams -->|Yes| CheckQueue{Matches left?}
+    
+    CheckQueue -->|No| ShowAll[Show: "All matches played"]
+    ShowAll --> Done
+    
+    CheckQueue -->|Yes| GetMatch[Get next match from queue]
+    GetMatch --> ShowTeams[Display: Team A vs Team B]
+    
+    ShowTeams --> AskRed[Ask: "Enter RED score"]
+    AskRed --> GetRed[User enters RED score]
+    GetRed --> AskBlue[Ask: "Enter BLUE score"]
+    AskBlue --> GetBlue[User enters BLUE score]
+    
+    GetBlue --> UpdateMatch[Update match with scores]
+    UpdateMatch --> UpdateRed[Update RED team stats]
+    UpdateRed --> UpdateBlue[Update BLUE team stats]
+    UpdateBlue --> LogResult[Save to results.csv]
+    LogResult --> ShowDone[Show: "Score recorded"]
+    ShowDone --> Done
+```
+
+---
+
+### 4. View Schedule & Results
+
+```mermaid
+flowchart TD
+    Start([User selects View Schedule]) --> PrintHeader[Print table header]
+    PrintHeader --> GetFirst[Get first match]
+    GetFirst --> HasMatch{Has match?}
+    
+    HasMatch -->|No| ShowSummary[Show: "X played, Y pending"]
+    ShowSummary --> Done([Return to Menu])
+    
+    HasMatch -->|Yes| CheckStatus{Played?}
+    
+    CheckStatus -->|Yes| ShowPlayed[Show: Score + Winner]
+    CheckStatus -->|No - Pending| ShowPending[Show: "? - ?  PENDING"]
+    
+    ShowPlayed --> GetNext[Get next match]
+    ShowPending --> GetNext
+    
+    GetNext --> HasMatch
+```
+
+---
+
+### 5. View Rankings
+
+```mermaid
+flowchart TD
+    Start([User selects View Rankings]) --> CheckTeams{Teams exist?}
+    
+    CheckTeams -->|No| ShowNone[Show: "No teams to display"]
+    ShowNone --> Done([Return to Menu])
+    
+    CheckTeams -->|Yes| CountTeams[Count all teams]
+    CountTeams --> CreateArray[Create array of teams]
+    CreateArray --> Sort[Sort by:<br/>1. Ranking Points (high to low)<br/>2. Total Score (high to low)]
+    Sort --> PrintHeader[Print table header]
+    PrintHeader --> PrintRow[Print each team's rank, name, stats]
+    PrintRow --> MoreTeams{More teams?}
+    
+    MoreTeams -->|Yes| PrintRow
+    MoreTeams -->|No| Done([Return to Menu])
+```
+
+---
+
+### 6. Export Rankings
+
+```mermaid
+flowchart TD
+    Start([User selects Export Rankings]) --> Sort[Sort teams by ranking]
+    Sort --> CreateFile[Create rankings.csv]
+    CreateFile --> WriteHeader[Write header row]
+    WriteHeader --> WriteRow[Write team data row]
+    WriteRow --> MoreTeams{More teams?}
+    
+    MoreTeams -->|Yes| WriteRow
+    MoreTeams -->|No| CloseFile[Close file]
+    CloseFile --> ShowMsg[Show: "Exported to rankings.csv"]
+    ShowMsg --> Done([Return to Menu])
+```
+
+---
+
+### 7. Exit Application
+
+```mermaid
+flowchart TD
+    Start([User selects Exit]) --> SaveTeams[Save teams to teams.csv]
+    SaveTeams --> SaveMatches[Save matches to matches.csv]
+    SaveMatches --> FreeTeams[Free all Team objects]
+    FreeTeams --> FreeMatches[Free all Match objects]
+    FreeMatches --> FreeQueue[Free match queue]
+    FreeQueue --> ShowBye[Show: "Goodbye!"]
+    ShowBye --> Done([End Program])
+```
+
+---
+
+## Detailed Feature Workflows
+
+### 8. Update Team Stats (After Match)
+
+```mermaid
+flowchart TD
+    Start[Update team after match] --> AddPlayed[matches_played +1]
+    AddPlayed --> AddScore[total_score + my_score]
+    AddScore --> Compare{Compare scores}
+    
+    Compare -->|I scored higher| WinCase[wins +1<br/>Ranking Points +3]
+    Compare -->|Scores equal| TieCase[ties +1<br/>Ranking Points +1]
+    Compare -->|I scored lower| LossCase[losses +1<br/>Ranking Points +0]
+    
+    WinCase --> Done([Done])
+    TieCase --> Done
+    LossCase --> Done
+```
+
+---
+
+### 9. Add Match to Queue
+
+```mermaid
+flowchart TD
+    Start[Add match to queue] --> CreateNode[Create new queue node]
+    CreateNode --> SetMatch[Store match in node]
+    SetMatch --> EmptyQ{Queue empty?}
+    
+    EmptyQ -->|Yes| SetBoth[Set front = node<br/>Set rear = node]
+    EmptyQ -->|No| Link[Link at end of queue<br/>Update rear to node]
+    
+    SetBoth --> IncSize[size +1]
+    Link --> IncSize
+    
+    IncSize --> Done([Match queued])
+```
+
+---
+
+### 10. Get Next Match from Queue
+
+```mermaid
+flowchart TD
+    Start[Get next match] --> EmptyQ{Queue empty?}
+    
+    EmptyQ -->|Yes| NoMatch[Return: No match]
+    NoMatch --> Done([End])
+    
+    EmptyQ -->|No| GetNode[Get front node]
+    GetNode -> GetMatch[Get match from node]
+    GetMatch --> MoveFront[Move front to next node]
+    MoveFront --> CheckEmpty{Queue now empty?}
+    
+    CheckEmpty -->|Yes| SetRear[Set rear = NULL]
+    CheckEmpty -->|No| Skip[Continue]
+    
+    SetRear --> RemoveNode[Remove old front node]
+    Skip --> RemoveNode
+    
+    RemoveNode --> DecSize[size -1]
+    DecSize --> Return[Return the match]
+    Return --> Done([End])
+```
+
+---
+
+### 11. Determine Match Winner
+
+```mermaid
+flowchart TD
+    Start[Scores entered] --> Compare{Compare scores}
+    
+    Compare -->|RED higher| RedWin[Winner: RED<br/>RED +3 RP, BLUE +0 RP]
+    Compare -->|BLUE higher| BlueWin[Winner: BLUE<br/>BLUE +3 RP, RED +0 RP]
+    Compare -->|Equal| Tie[Result: TIE<br/>Both +1 RP]
+    
+    RedWin --> Log[Save to results.csv]
+    BlueWin --> Log
+    Tie --> Log
+    
+    Log --> Done([Done])
+```
+
+---
+
+### 12. Sort Teams for Rankings
+
+```mermaid
+flowchart TD
+    Start[Sort teams] --> Compare{Compare two teams}
+    
+    Compare --> DiffRP{Different<br/>Ranking Points?}
+    DiffRP -->|Yes| ByRP[Sort by Ranking Points]
+    ByRP --> Done([Result])
+    
+    DiffRP -->|No| DiffScore{Different<br/>Total Score?}
+    DiffScore -->|Yes| ByScore[Sort by Total Score]
+    ByScore --> Done
+    
+    DiffScore -->|No| ByID[Sort by Team ID]
+    ByID --> Done
+```
+
+---
+
+### 13. Find Team by ID
+
+```mermaid
+flowchart TD
+    Start[Find team by ID] --> First{Is list empty?}
+    
+    First -->|Yes| NotFound[Return: Not found]
+    NotFound --> Done([End])
+    
+    First -->|No| CheckId{Is this the team?}
+    
+    CheckId -->|Yes| Found[Return: Team found]
+    Found --> Done
+    
+    CheckId -->|No| Next[Go to next team]
+    Next --> First
+```
+
+---
+
+### 14. Load Teams from File
+
+```mermaid
+flowchart TD
+    Start[Load teams from CSV] --> OpenFile[Open file]
+    OpenFile --> CheckOpen{File opened?}
+    
+    CheckOpen -->|No| ShowErr[Show: Cannot open file]
+    ShowErr --> Done([End])
+    
+    CheckOpen -->|Yes| SkipHdr[Skip header row]
+    SkipHdr --> ReadRow[Read a data row]
+    ReadRow --> MoreData{More data?}
+    
+    MoreData -->|No| CloseFile[Close file]
+    CloseFile --> RetList[Return teams list]
+    RetList --> Done
+    
+    MoreData -->|Yes| Parse[Parse: ID, Team Name]
+    Parse --> Valid{Valid data?}
+    
+    Valid -->|No| SkipHdr
+    Valid -->|Yes| Create[Create Team object]
+    Create --> Add[Add to list]
+    Add --> SkipHdr
+```
+
+---
+
+### 15. Save Match Result
+
+```mermaid
+flowchart TD
+    Start[Save match result] --> OpenFile[Try to open file]
+    OpenFile --> Exists{File exists?}
+    
+    Exists -->|No| Create[Create new file]
+    Create --> WriteHdr[Write header row]
+    
+    Exists -->|Yes| Append[Open for append]
+    Append --> Skip[Continue]
+    
+    WriteHdr --> WriteRow[Write: match#, teams, scores, winner]
+    Skip --> WriteRow
+    
+    WriteRow --> Close[Close file]
+    Close --> Done([Done])
+```
+
+---
+
+### 16. Save Teams to File
+
+```mermaid
+flowchart TD
+    Start[Save teams to CSV] --> OpenFile[Open file for writing]
+    OpenFile --> CheckOpen{Success?}
+    
+    CheckOpen -->|No| Done([End])
+    CheckOpen -->|Yes| WriteHdr[Write header row]
+    
+    WriteHdr --> MoreTeams{More teams?}
+    
+    MoreTeams -->|Yes| WriteRow[Write team data]
+    WriteRow --> NextTeam[Go to next team]
+    NextTeam --> MoreTeams
+    
+    MoreTeams -->|No| Close[Close file]
+    Close --> Done
+```
+
+---
+
+### 17. Build Queue from Matches
+
+```mermaid
+flowchart TD
+    Start[Build pending queue] --> Init[Initialize empty queue]
+    Init --> GetFirst[Get first match]
+    GetFirst --> HasMatch{Has match?}
+    
+    HasMatch -->|No| Done([Queue built])
+    
+    HasMatch -->|Yes| CheckStatus{Status?}
+    
+    CheckStatus -->|Pending| Enqueue[Add to queue]
+    CheckStatus -->|Played| Skip[Skip this match]
+    
+    Enqueue --> GetNext[Get next match]
+    Skip --> GetNext
+    
+    GetNext --> HasMatch
 ```
 
 ---
