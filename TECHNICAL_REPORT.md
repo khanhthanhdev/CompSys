@@ -62,38 +62,45 @@ The FTC Tournament Management System (RMS) is a console-based C application desi
 
 ```mermaid
 flowchart TD
-    Start([Program Start]) --> Init[Initialize variables<br/>teams=NULL, matches=NULL<br/>Init queue]
-    Init --> Welcome[Print welcome message]
-    Welcome --> Menu[Display Main Menu]
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+    classDef warn fill:#ffebee,stroke:#ef5350,color:#c62828
+    classDef free fill:#fff3e0,stroke:#ffa726,color:#e65100
+
+    Start([Program Start]):::startEnd --> Init[Initialize variables, teams/matches=NULL, init queue]:::process
+    Init --> Welcome[Print welcome message]:::io
+    Welcome --> Menu[Display Main Menu]:::io
     
-    Menu --> GetChoice{Get user choice}
+    Menu --> GetChoice{Get user choice}:::decision
     
-    GetChoice -->|1: Import Teams| LoadTeams[Load teams.csv<br/>Create Team* linked list]
+    GetChoice -->|1: Import Teams| LoadTeams[Load teams.csv, create Team linked list]:::process
     LoadTeams --> Menu
     
-    GetChoice -->|2: Import Schedule| LoadMatches[Load matches.csv<br/>Build pending queue]
+    GetChoice -->|2: Import Schedule| LoadMatches[Load matches.csv, build pending queue]:::process
     LoadMatches --> Menu
     
-    GetChoice -->|3: Play Match| PlayMatch{Queue empty?}
-    PlayMatch -->|Yes| MsgNoMatch[Show: All matches played]
-    PlayMatch -->|No| Dequeue[Dequeue match<br/>Enter scores<br/>Update team stats]
+    GetChoice -->|3: Play Match| PlayMatch{Queue empty?}:::decision
+    PlayMatch -->|Yes| MsgNoMatch[Show: All matches played]:::warn
+    PlayMatch -->|No| Dequeue[Dequeue match, enter scores, update stats]:::process
     MsgNoMatch --> Menu
     Dequeue --> Menu
     
-    GetChoice -->|4: View Schedule| ViewSched[Display all matches<br/>with status/results]
+    GetChoice -->|4: View Schedule| ViewSched[Display all matches with status/results]:::io
     ViewSched --> Menu
     
-    GetChoice -->|5: View Rankings| ViewRank[Sort teams by RP<br/>Display standings]
+    GetChoice -->|5: View Rankings| ViewRank[Sort teams by RP, display standings]:::io
     ViewRank --> Menu
     
-    GetChoice -->|6: Export| Export[Save rankings.csv]
+    GetChoice -->|6: Export| Export[Save rankings.csv]:::io
     Export --> Menu
     
-    GetChoice -->|7: Exit| SaveAll[Save teams.csv<br/>Save matches.csv]
-    SaveAll --> FreeMem[Free all memory<br/>teams, matches, queue]
-    FreeMem --> End([Program End])
+    GetChoice -->|7: Exit| SaveAll[Save teams.csv and matches.csv]:::io
+    SaveAll --> FreeMem[Free all memory: teams, matches, queue]:::free
+    FreeMem --> End([Program End]):::startEnd
     
-    GetChoice -->|Invalid| MsgErr[Show: Invalid option]
+    GetChoice -->|Invalid| MsgErr[Show: Invalid option]:::warn
     MsgErr --> Menu
 ```
 
@@ -105,24 +112,28 @@ flowchart TD
 
 ```mermaid
 flowchart TB
+    classDef header fill:#f3e5f5,stroke:#ba68c8,color:#6a1b9a
+    classDef source fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef data fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+
     subgraph Header["Header File"]
-        H[tournament.h<br/>Structs, Enums, Constants<br/>Function Declarations]
+        H[tournament.h - Structs, Enums, Function Declarations]:::header
     end
     
     subgraph Source["Source Files"]
-        MAIN[main.c<br/>Entry Point<br/>Menu Loop]
-        TEAM[team.c<br/>Team Management]
-        MATCH[match.c<br/>Match Management]
-        QUEUE[queue.c<br/>FIFO Queue]
-        RANK[ranking.c<br/>Sorting & Display]
-        FILEIO[file_io.c<br/>CSV Read/Write]
+        MAIN[main.c - Entry Point, Menu Loop]:::source
+        TEAM[team.c - Team Management]:::source
+        MATCH[match.c - Match Management]:::source
+        QUEUE[queue.c - FIFO Queue]:::source
+        RANK[ranking.c - Sorting and Display]:::source
+        FILEIO[file_io.c - CSV Read/Write]:::source
     end
     
     subgraph Data["Data Files"]
-        TC[(teams.csv)]
-        MC[(matches.csv)]
-        RC[(results.csv)]
-        KC[(rankings.csv)]
+        TC[(teams.csv)]:::data
+        MC[(matches.csv)]:::data
+        RC[(results.csv)]:::data
+        KC[(rankings.csv)]:::data
     end
     
     H --> MAIN

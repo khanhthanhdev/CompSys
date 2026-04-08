@@ -109,22 +109,26 @@ typedef struct {
 
 ```mermaid
 flowchart LR
+    classDef userStyle fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef modStyle fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef fileStyle fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+
     subgraph User["User Actions"]
-        Menu[Main Menu]
+        Menu[Main Menu]:::userStyle
     end
     
     subgraph Modules["Modules"]
-        Teams[Teams]
-        Matches[Matches]
-        Queue[Queue]
-        Ranking[Ranking]
+        Teams[Teams]:::modStyle
+        Matches[Matches]:::modStyle
+        Queue[Queue]:::modStyle
+        Ranking[Ranking]:::modStyle
     end
     
     subgraph Files["Files"]
-        T[(teams.csv)]
-        M[(matches.csv)]
-        R[(results.csv)]
-        K[(rankings.csv)]
+        T[(teams.csv)]:::fileStyle
+        M[(matches.csv)]:::fileStyle
+        R[(results.csv)]:::fileStyle
+        K[(rankings.csv)]:::fileStyle
     end
     
     Menu --> Teams
@@ -145,18 +149,23 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Start([User selects Import Teams]) --> OpenFile[Open teams.csv]
-    OpenFile --> SkipHeader[Skip header row]
-    SkipHeader --> ReadRow[Read next row]
-    ReadRow --> MoreRows{More rows?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+
+    Start([User selects Import Teams]):::startEnd --> OpenFile[Open teams.csv]:::io
+    OpenFile --> SkipHeader[Skip header row]:::process
+    SkipHeader --> ReadRow[Read next row]:::io
+    ReadRow --> MoreRows{More rows?}:::decision
     
-    MoreRows -->|Yes| CreateTeam[Create new Team object]
-    CreateTeam --> AddToList[Add to teams list]
+    MoreRows -->|Yes| CreateTeam[Create new Team object]:::process
+    CreateTeam --> AddToList[Add to teams list]:::process
     AddToList --> ReadRow
     
-    MoreRows -->|No| CloseFile[Close file]
-    CloseFile --> ShowCount[Show: "Loaded N teams"]
-    ShowCount --> Done([Return to Menu])
+    MoreRows -->|No| CloseFile[Close file]:::io
+    CloseFile --> ShowCount[Show: Loaded N teams]:::process
+    ShowCount --> Done([Return to Menu]):::startEnd
 ```
 
 ---
@@ -165,23 +174,28 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([User selects Import Schedule]) --> OpenFile[Open matches.csv]
-    OpenFile --> SkipHeader[Skip header row]
-    SkipHeader --> ReadRow[Read next row]
-    ReadRow --> MoreRows{More rows?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+
+    Start([User selects Import Schedule]):::startEnd --> OpenFile[Open matches.csv]:::io
+    OpenFile --> SkipHeader[Skip header row]:::process
+    SkipHeader --> ReadRow[Read next row]:::io
+    ReadRow --> MoreRows{More rows?}:::decision
     
-    MoreRows -->|Yes| CreateMatch[Create new Match object]
-    CreateMatch --> CheckStatus{Match played?}
+    MoreRows -->|Yes| CreateMatch[Create new Match object]:::process
+    CreateMatch --> CheckStatus{Match played?}:::decision
     
-    CheckStatus -->|No - Pending| AddToQueue[Add to match queue]
-    CheckStatus -->|Yes - Played| Skip[Skip]
+    CheckStatus -->|No - Pending| AddToQueue[Add to match queue]:::process
+    CheckStatus -->|Yes - Played| Skip[Skip]:::process
     
     AddToQueue --> ReadRow
     Skip --> ReadRow
     
-    MoreRows -->|No| CloseFile[Close file]
-    CloseFile --> ShowCount[Show: "Loaded N matches"]
-    ShowCount --> Done([Return to Menu])
+    MoreRows -->|No| CloseFile[Close file]:::io
+    CloseFile --> ShowCount[Show: Loaded N matches]:::process
+    ShowCount --> Done([Return to Menu]):::startEnd
 ```
 
 ---
@@ -189,30 +203,36 @@ flowchart TD
 ### 3. Play Next Match
 
 ```mermaid
-flowchart TD
-    Start([User selects Play Match]) --> CheckTeams{Teams loaded?}
+flowchart LR
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+    classDef warn fill:#ffebee,stroke:#ef5350,color:#c62828
+
+    Start([User selects Play Match]):::startEnd --> CheckTeams{Teams loaded?}:::decision
     
-    CheckTeams -->|No| ShowErr[Show: "Load teams first"]
-    ShowErr --> Done([Return to Menu])
+    CheckTeams -->|No| ShowErr[Show: Load teams first]:::warn
+    ShowErr --> Done([Return to Menu]):::startEnd
     
-    CheckTeams -->|Yes| CheckQueue{Matches left?}
+    CheckTeams -->|Yes| CheckQueue{Matches left?}:::decision
     
-    CheckQueue -->|No| ShowAll[Show: "All matches played"]
+    CheckQueue -->|No| ShowAll[Show: All matches played]:::warn
     ShowAll --> Done
     
-    CheckQueue -->|Yes| GetMatch[Get next match from queue]
-    GetMatch --> ShowTeams[Display: Team A vs Team B]
+    CheckQueue -->|Yes| GetMatch[Get next match from queue]:::process
+    GetMatch --> ShowTeams[Display: Team A vs Team B]:::io
     
-    ShowTeams --> AskRed[Ask: "Enter RED score"]
-    AskRed --> GetRed[User enters RED score]
-    GetRed --> AskBlue[Ask: "Enter BLUE score"]
-    AskBlue --> GetBlue[User enters BLUE score]
+    ShowTeams --> AskRed[Ask: Enter RED score]:::io
+    AskRed --> GetRed[User enters RED score]:::io
+    GetRed --> AskBlue[Ask: Enter BLUE score]:::io
+    AskBlue --> GetBlue[User enters BLUE score]:::io
     
-    GetBlue --> UpdateMatch[Update match with scores]
-    UpdateMatch --> UpdateRed[Update RED team stats]
-    UpdateRed --> UpdateBlue[Update BLUE team stats]
-    UpdateBlue --> LogResult[Save to results.csv]
-    LogResult --> ShowDone[Show: "Score recorded"]
+    GetBlue --> UpdateMatch[Update match with scores]:::process
+    UpdateMatch --> UpdateRed[Update RED team stats]:::process
+    UpdateRed --> UpdateBlue[Update BLUE team stats]:::process
+    UpdateBlue --> LogResult[Save to results.csv]:::io
+    LogResult --> ShowDone[Show: Score recorded]:::process
     ShowDone --> Done
 ```
 
@@ -222,19 +242,24 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([User selects View Schedule]) --> PrintHeader[Print table header]
-    PrintHeader --> GetFirst[Get first match]
-    GetFirst --> HasMatch{Has match?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+
+    Start([User selects View Schedule]):::startEnd --> PrintHeader[Print table header]:::process
+    PrintHeader --> GetFirst[Get first match]:::process
+    GetFirst --> HasMatch{Has match?}:::decision
     
-    HasMatch -->|No| ShowSummary[Show: "X played, Y pending"]
-    ShowSummary --> Done([Return to Menu])
+    HasMatch -->|No| ShowSummary[Show: X played, Y pending]:::io
+    ShowSummary --> Done([Return to Menu]):::startEnd
     
-    HasMatch -->|Yes| CheckStatus{Played?}
+    HasMatch -->|Yes| CheckStatus{Played?}:::decision
     
-    CheckStatus -->|Yes| ShowPlayed[Show: Score + Winner]
-    CheckStatus -->|No - Pending| ShowPending[Show: "? - ?  PENDING"]
+    CheckStatus -->|Yes| ShowPlayed[Show: Score + Winner]:::io
+    CheckStatus -->|No - Pending| ShowPending[Show: ? - ? PENDING]:::io
     
-    ShowPlayed --> GetNext[Get next match]
+    ShowPlayed --> GetNext[Get next match]:::process
     ShowPending --> GetNext
     
     GetNext --> HasMatch
@@ -246,20 +271,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([User selects View Rankings]) --> CheckTeams{Teams exist?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+
+    Start([User selects View Rankings]):::startEnd --> CheckTeams{Teams exist?}:::decision
     
-    CheckTeams -->|No| ShowNone[Show: "No teams to display"]
-    ShowNone --> Done([Return to Menu])
+    CheckTeams -->|No| ShowNone[Show: No teams to display]:::io
+    ShowNone --> Done([Return to Menu]):::startEnd
     
-    CheckTeams -->|Yes| CountTeams[Count all teams]
-    CountTeams --> CreateArray[Create array of teams]
-    CreateArray --> Sort[Sort by:<br/>1. Ranking Points (high to low)<br/>2. Total Score (high to low)]
-    Sort --> PrintHeader[Print table header]
-    PrintHeader --> PrintRow[Print each team's rank, name, stats]
-    PrintRow --> MoreTeams{More teams?}
+    CheckTeams -->|Yes| CountTeams[Count all teams]:::process
+    CountTeams --> CreateArray[Create array of teams]:::process
+    CreateArray --> Sort[Sort by RP then Total Score]:::process
+    Sort --> PrintHeader[Print table header]:::io
+    PrintHeader --> PrintRow[Print each team rank, name, stats]:::io
+    PrintRow --> MoreTeams{More teams?}:::decision
     
     MoreTeams -->|Yes| PrintRow
-    MoreTeams -->|No| Done([Return to Menu])
+    MoreTeams -->|No| Done([Return to Menu]):::startEnd
 ```
 
 ---
@@ -268,16 +298,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([User selects Export Rankings]) --> Sort[Sort teams by ranking]
-    Sort --> CreateFile[Create rankings.csv]
-    CreateFile --> WriteHeader[Write header row]
-    WriteHeader --> WriteRow[Write team data row]
-    WriteRow --> MoreTeams{More teams?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+
+    Start([User selects Export Rankings]):::startEnd --> Sort[Sort teams by ranking]:::process
+    Sort --> CreateFile[Create rankings.csv]:::io
+    CreateFile --> WriteHeader[Write header row]:::io
+    WriteHeader --> WriteRow[Write team data row]:::io
+    WriteRow --> MoreTeams{More teams?}:::decision
     
     MoreTeams -->|Yes| WriteRow
-    MoreTeams -->|No| CloseFile[Close file]
-    CloseFile --> ShowMsg[Show: "Exported to rankings.csv"]
-    ShowMsg --> Done([Return to Menu])
+    MoreTeams -->|No| CloseFile[Close file]:::io
+    CloseFile --> ShowMsg[Show: Exported to rankings.csv]:::process
+    ShowMsg --> Done([Return to Menu]):::startEnd
 ```
 
 ---
@@ -286,13 +321,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([User selects Exit]) --> SaveTeams[Save teams to teams.csv]
-    SaveTeams --> SaveMatches[Save matches to matches.csv]
-    SaveMatches --> FreeTeams[Free all Team objects]
-    FreeTeams --> FreeMatches[Free all Match objects]
-    FreeMatches --> FreeQueue[Free match queue]
-    FreeQueue --> ShowBye[Show: "Goodbye!"]
-    ShowBye --> Done([End Program])
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+    classDef free fill:#fff3e0,stroke:#ffa726,color:#e65100
+
+    Start([User selects Exit]):::startEnd --> SaveTeams[Save teams to teams.csv]:::io
+    SaveTeams --> SaveMatches[Save matches to matches.csv]:::io
+    SaveMatches --> FreeTeams[Free all Team objects]:::free
+    FreeTeams --> FreeMatches[Free all Match objects]:::free
+    FreeMatches --> FreeQueue[Free match queue]:::free
+    FreeQueue --> ShowBye[Show: Goodbye!]:::process
+    ShowBye --> Done([End Program]):::startEnd
 ```
 
 ---
@@ -303,15 +343,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Update team after match] --> AddPlayed[matches_played +1]
-    AddPlayed --> AddScore[total_score + my_score]
-    AddScore --> Compare{Compare scores}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef win fill:#e8f5e9,stroke:#66bb6a,color:#2e7d32
+    classDef tie fill:#fffde7,stroke:#fdd835,color:#f57f17
+    classDef loss fill:#ffebee,stroke:#ef5350,color:#c62828
+
+    Start[Update team after match]:::startEnd --> AddPlayed[matches_played +1]:::process
+    AddPlayed --> AddScore[total_score + my_score]:::process
+    AddScore --> Compare{Compare scores}:::decision
     
-    Compare -->|I scored higher| WinCase[wins +1<br/>Ranking Points +3]
-    Compare -->|Scores equal| TieCase[ties +1<br/>Ranking Points +1]
-    Compare -->|I scored lower| LossCase[losses +1<br/>Ranking Points +0]
+    Compare -->|I scored higher| WinCase[wins +1, RP +3]:::win
+    Compare -->|Scores equal| TieCase[ties +1, RP +1]:::tie
+    Compare -->|I scored lower| LossCase[losses +1, RP +0]:::loss
     
-    WinCase --> Done([Done])
+    WinCase --> Done([Done]):::startEnd
     TieCase --> Done
     LossCase --> Done
 ```
@@ -322,17 +369,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Add match to queue] --> CreateNode[Create new queue node]
-    CreateNode --> SetMatch[Store match in node]
-    SetMatch --> EmptyQ{Queue empty?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+
+    Start[Add match to queue]:::startEnd --> CreateNode[Create new queue node]:::process
+    CreateNode --> SetMatch[Store match in node]:::process
+    SetMatch --> EmptyQ{Queue empty?}:::decision
     
-    EmptyQ -->|Yes| SetBoth[Set front = node<br/>Set rear = node]
-    EmptyQ -->|No| Link[Link at end of queue<br/>Update rear to node]
+    EmptyQ -->|Yes| SetBoth[Set front and rear to node]:::process
+    EmptyQ -->|No| Link[Link at end, update rear]:::process
     
-    SetBoth --> IncSize[size +1]
+    SetBoth --> IncSize[size +1]:::process
     Link --> IncSize
     
-    IncSize --> Done([Match queued])
+    IncSize --> Done([Match queued]):::startEnd
 ```
 
 ---
@@ -341,25 +392,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Get next match] --> EmptyQ{Queue empty?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef warn fill:#ffebee,stroke:#ef5350,color:#c62828
+
+    Start[Get next match]:::startEnd --> EmptyQ{Queue empty?}:::decision
     
-    EmptyQ -->|Yes| NoMatch[Return: No match]
-    NoMatch --> Done([End])
+    EmptyQ -->|Yes| NoMatch[Return: No match]:::warn
+    NoMatch --> Done([End]):::startEnd
     
-    EmptyQ -->|No| GetNode[Get front node]
-    GetNode -> GetMatch[Get match from node]
-    GetMatch --> MoveFront[Move front to next node]
-    MoveFront --> CheckEmpty{Queue now empty?}
+    EmptyQ -->|No| GetNode[Get front node]:::process
+    GetNode --> GetMatch[Get match from node]:::process
+    GetMatch --> MoveFront[Move front to next node]:::process
+    MoveFront --> CheckEmpty{Queue now empty?}:::decision
     
-    CheckEmpty -->|Yes| SetRear[Set rear = NULL]
-    CheckEmpty -->|No| Skip[Continue]
+    CheckEmpty -->|Yes| SetRear[Set rear = NULL]:::process
+    CheckEmpty -->|No| Skip[Continue]:::process
     
-    SetRear --> RemoveNode[Remove old front node]
+    SetRear --> RemoveNode[Remove old front node]:::process
     Skip --> RemoveNode
     
-    RemoveNode --> DecSize[size -1]
-    DecSize --> Return[Return the match]
-    Return --> Done([End])
+    RemoveNode --> DecSize[size -1]:::process
+    DecSize --> Return[Return the match]:::process
+    Return --> Done([End]):::startEnd
 ```
 
 ---
@@ -368,17 +424,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Scores entered] --> Compare{Compare scores}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef red fill:#ffcdd2,stroke:#ef5350,color:#b71c1c
+    classDef blue fill:#bbdefb,stroke:#42a5f5,color:#0d47a1
+    classDef tie fill:#fffde7,stroke:#fdd835,color:#f57f17
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+
+    Start[Scores entered]:::startEnd --> Compare{Compare scores}:::decision
     
-    Compare -->|RED higher| RedWin[Winner: RED<br/>RED +3 RP, BLUE +0 RP]
-    Compare -->|BLUE higher| BlueWin[Winner: BLUE<br/>BLUE +3 RP, RED +0 RP]
-    Compare -->|Equal| Tie[Result: TIE<br/>Both +1 RP]
+    Compare -->|RED higher| RedWin[Winner: RED, RED +3 RP, BLUE +0 RP]:::red
+    Compare -->|BLUE higher| BlueWin[Winner: BLUE, BLUE +3 RP, RED +0 RP]:::blue
+    Compare -->|Equal| Tie[Result: TIE, Both +1 RP]:::tie
     
-    RedWin --> Log[Save to results.csv]
+    RedWin --> Log[Save to results.csv]:::io
     BlueWin --> Log
     Tie --> Log
     
-    Log --> Done([Done])
+    Log --> Done([Done]):::startEnd
 ```
 
 ---
@@ -387,17 +451,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Sort teams] --> Compare{Compare two teams}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+
+    Start[Sort teams]:::startEnd --> Compare{Compare two teams}:::decision
     
-    Compare --> DiffRP{Different<br/>Ranking Points?}
-    DiffRP -->|Yes| ByRP[Sort by Ranking Points]
-    ByRP --> Done([Result])
+    Compare --> DiffRP{Different Ranking Points?}:::decision
+    DiffRP -->|Yes| ByRP[Sort by Ranking Points]:::process
+    ByRP --> Done([Result]):::startEnd
     
-    DiffRP -->|No| DiffScore{Different<br/>Total Score?}
-    DiffScore -->|Yes| ByScore[Sort by Total Score]
+    DiffRP -->|No| DiffScore{Different Total Score?}:::decision
+    DiffScore -->|Yes| ByScore[Sort by Total Score]:::process
     ByScore --> Done
     
-    DiffScore -->|No| ByID[Sort by Team ID]
+    DiffScore -->|No| ByID[Sort by Team ID]:::process
     ByID --> Done
 ```
 
@@ -407,17 +475,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Find team by ID] --> First{Is list empty?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef win fill:#e8f5e9,stroke:#66bb6a,color:#2e7d32
+    classDef warn fill:#ffebee,stroke:#ef5350,color:#c62828
+
+    Start[Find team by ID]:::startEnd --> First{Is list empty?}:::decision
     
-    First -->|Yes| NotFound[Return: Not found]
-    NotFound --> Done([End])
+    First -->|Yes| NotFound[Return: Not found]:::warn
+    NotFound --> Done([End]):::startEnd
     
-    First -->|No| CheckId{Is this the team?}
+    First -->|No| CheckId{Is this the team?}:::decision
     
-    CheckId -->|Yes| Found[Return: Team found]
+    CheckId -->|Yes| Found[Return: Team found]:::win
     Found --> Done
     
-    CheckId -->|No| Next[Go to next team]
+    CheckId -->|No| Next[Go to next team]:::process
     Next --> First
 ```
 
@@ -427,26 +501,32 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Load teams from CSV] --> OpenFile[Open file]
-    OpenFile --> CheckOpen{File opened?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+    classDef warn fill:#ffebee,stroke:#ef5350,color:#c62828
+
+    Start[Load teams from CSV]:::startEnd --> OpenFile[Open file]:::io
+    OpenFile --> CheckOpen{File opened?}:::decision
     
-    CheckOpen -->|No| ShowErr[Show: Cannot open file]
-    ShowErr --> Done([End])
+    CheckOpen -->|No| ShowErr[Show: Cannot open file]:::warn
+    ShowErr --> Done([End]):::startEnd
     
-    CheckOpen -->|Yes| SkipHdr[Skip header row]
-    SkipHdr --> ReadRow[Read a data row]
-    ReadRow --> MoreData{More data?}
+    CheckOpen -->|Yes| SkipHdr[Skip header row]:::process
+    SkipHdr --> ReadRow[Read a data row]:::io
+    ReadRow --> MoreData{More data?}:::decision
     
-    MoreData -->|No| CloseFile[Close file]
-    CloseFile --> RetList[Return teams list]
+    MoreData -->|No| CloseFile[Close file]:::io
+    CloseFile --> RetList[Return teams list]:::process
     RetList --> Done
     
-    MoreData -->|Yes| Parse[Parse: ID, Team Name]
-    Parse --> Valid{Valid data?}
+    MoreData -->|Yes| Parse[Parse: ID, Team Name]:::process
+    Parse --> Valid{Valid data?}:::decision
     
     Valid -->|No| SkipHdr
-    Valid -->|Yes| Create[Create Team object]
-    Create --> Add[Add to list]
+    Valid -->|Yes| Create[Create Team object]:::process
+    Create --> Add[Add to list]:::process
     Add --> SkipHdr
 ```
 
@@ -456,20 +536,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Save match result] --> OpenFile[Try to open file]
-    OpenFile --> Exists{File exists?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+
+    Start[Save match result]:::startEnd --> OpenFile[Try to open file]:::io
+    OpenFile --> Exists{File exists?}:::decision
     
-    Exists -->|No| Create[Create new file]
-    Create --> WriteHdr[Write header row]
+    Exists -->|No| Create[Create new file]:::io
+    Create --> WriteHdr[Write header row]:::io
     
-    Exists -->|Yes| Append[Open for append]
-    Append --> Skip[Continue]
+    Exists -->|Yes| Append[Open for append]:::io
+    Append --> Skip[Continue]:::process
     
-    WriteHdr --> WriteRow[Write: match#, teams, scores, winner]
+    WriteHdr --> WriteRow[Write: match, teams, scores, winner]:::io
     Skip --> WriteRow
     
-    WriteRow --> Close[Close file]
-    Close --> Done([Done])
+    WriteRow --> Close[Close file]:::io
+    Close --> Done([Done]):::startEnd
 ```
 
 ---
@@ -478,19 +563,24 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Save teams to CSV] --> OpenFile[Open file for writing]
-    OpenFile --> CheckOpen{Success?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+    classDef io fill:#e8f5e9,stroke:#81c784,color:#2e7d32
+
+    Start[Save teams to CSV]:::startEnd --> OpenFile[Open file for writing]:::io
+    OpenFile --> CheckOpen{Success?}:::decision
     
-    CheckOpen -->|No| Done([End])
-    CheckOpen -->|Yes| WriteHdr[Write header row]
+    CheckOpen -->|No| Done([End]):::startEnd
+    CheckOpen -->|Yes| WriteHdr[Write header row]:::io
     
-    WriteHdr --> MoreTeams{More teams?}
+    WriteHdr --> MoreTeams{More teams?}:::decision
     
-    MoreTeams -->|Yes| WriteRow[Write team data]
-    WriteRow --> NextTeam[Go to next team]
+    MoreTeams -->|Yes| WriteRow[Write team data]:::io
+    WriteRow --> NextTeam[Go to next team]:::process
     NextTeam --> MoreTeams
     
-    MoreTeams -->|No| Close[Close file]
+    MoreTeams -->|No| Close[Close file]:::io
     Close --> Done
 ```
 
@@ -500,18 +590,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Build pending queue] --> Init[Initialize empty queue]
-    Init --> GetFirst[Get first match]
-    GetFirst --> HasMatch{Has match?}
+    classDef startEnd fill:#fce4ec,stroke:#e57373,color:#b71c1c
+    classDef process fill:#e3f2fd,stroke:#64b5f6,color:#1565c0
+    classDef decision fill:#fff3e0,stroke:#ffb74d,color:#e65100
+
+    Start[Build pending queue]:::startEnd --> Init[Initialize empty queue]:::process
+    Init --> GetFirst[Get first match]:::process
+    GetFirst --> HasMatch{Has match?}:::decision
     
-    HasMatch -->|No| Done([Queue built])
+    HasMatch -->|No| Done([Queue built]):::startEnd
     
-    HasMatch -->|Yes| CheckStatus{Status?}
+    HasMatch -->|Yes| CheckStatus{Status?}:::decision
     
-    CheckStatus -->|Pending| Enqueue[Add to queue]
-    CheckStatus -->|Played| Skip[Skip this match]
+    CheckStatus -->|Pending| Enqueue[Add to queue]:::process
+    CheckStatus -->|Played| Skip[Skip this match]:::process
     
-    Enqueue --> GetNext[Get next match]
+    Enqueue --> GetNext[Get next match]:::process
     Skip --> GetNext
     
     GetNext --> HasMatch

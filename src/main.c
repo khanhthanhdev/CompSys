@@ -2,7 +2,7 @@
 
 void print_menu(void) {
     printf("\n========================================\n");
-    printf("   FTC TOURNAMENT MANAGEMENT SYSTEM\n");
+    printf("   ROBOTICS TOURNAMENT MANAGEMENT SYSTEM\n");
     printf("========================================\n");
     printf(" [1] Import Teams from CSV\n");
     printf(" [2] Import Match Schedule from CSV\n");
@@ -25,7 +25,7 @@ int main(void) {
 
     queue_init(&queue);
 
-    printf("Welcome to FTC Tournament Manager!\n");
+    printf("Welcome to Robotics Tournament Manager!\n");
 
     while (1) {
         print_menu();
