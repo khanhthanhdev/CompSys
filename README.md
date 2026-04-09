@@ -142,7 +142,6 @@ flowchart LR
     Ranking --> K
     Queue --> Matches
 ```
-
 ---
 
 ### 1. Import Teams

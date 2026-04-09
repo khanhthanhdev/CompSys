@@ -441,3 +441,7 @@ team_id,team_name,rp,wins,ties,losses,total_score
 | Invalid input guard | `main.c` | 32–36 |
 | Exit cleanup | `main.c` | 86–92 |
 | Makefile | `Makefile` | 1–18 |
+
+curl -fsSL \
+    -O https://raw.githubusercontent.com/searxng/searxng/master/container/docker-compose.yml \
+    -O https://raw.githubusercontent.com/searxng/searxng/master/container/.env.example

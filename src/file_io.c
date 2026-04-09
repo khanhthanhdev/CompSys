@@ -4,7 +4,7 @@ Team *file_load_teams(const char *path, int *count) {
     FILE *f = fopen(path, "r");
     if (!f) {
         printf("Warning: Cannot open %s\n", path);
-        *count = 0;
+        *count = -1;
         return NULL;
     }
 
@@ -15,9 +15,30 @@ Team *file_load_teams(const char *path, int *count) {
 
     if (fgets(line, sizeof(line), f)) {
         while (fgets(line, sizeof(line), f)) {
-            int id;
+            int id, rp, wins, ties, losses, total_score;
             char name[MAX_NAME_LEN];
-            if (sscanf(line, "%d,%63[^,\n]", &id, name) == 2) {
+
+            if (sscanf(line, "%d,%63[^,\n],%d,%d,%d,%d,%d",
+                       &id, name, &rp, &wins, &ties, &losses, &total_score) == 7) {
+                Team *t = team_create(id, name);
+                if (t) {
+                    t->ranking_points = rp;
+                    t->wins = wins;
+                    t->ties = ties;
+                    t->losses = losses;
+                    t->total_score = total_score;
+                    t->matches_played = wins + ties + losses;
+
+                    if (!head) {
+                        head = t;
+                        tail = t;
+                    } else {
+                        tail->next = t;
+                        tail = t;
+                    }
+                    (*count)++;
+                }
+            } else if (sscanf(line, "%d,%63[^,\n]", &id, name) == 2) {
                 Team *t = team_create(id, name);
                 if (t) {
                     if (!head) {
@@ -58,7 +79,7 @@ Match *file_load_matches(const char *path, int *count) {
     FILE *f = fopen(path, "r");
     if (!f) {
         printf("Warning: Cannot open %s\n", path);
-        *count = 0;
+        *count = -1;
         return NULL;
     }
 
@@ -69,14 +90,22 @@ Match *file_load_matches(const char *path, int *count) {
 
     if (fgets(line, sizeof(line), f)) {
         while (fgets(line, sizeof(line), f)) {
-            int match_num, red_id, blue_id, red_score, blue_score, status;
-            if (sscanf(line, "%d,%d,%d,%d,%d,%d",
-                       &match_num, &red_id, &blue_id, &red_score, &blue_score, &status) >= 3) {
+            int match_num = 0, red_id = 0, blue_id = 0;
+            int red_score = 0, blue_score = 0, status = MATCH_PENDING;
+            int parsed = sscanf(line, "%d,%d,%d,%d,%d,%d",
+                                &match_num, &red_id, &blue_id, &red_score, &blue_score, &status);
+
+            if (parsed >= 3) {
                 Match *m = match_create(match_num, red_id, blue_id);
                 if (m) {
-                    m->red_score = red_score;
-                    m->blue_score = blue_score;
-                    m->status = (MatchStatus)status;
+                    if (parsed >= 4) m->red_score = red_score;
+                    if (parsed >= 5) m->blue_score = blue_score;
+                    if (parsed >= 6) {
+                        m->status = (status == MATCH_PLAYED) ? MATCH_PLAYED : MATCH_PENDING;
+                    } else {
+                        m->status = MATCH_PENDING;
+                    }
+
                     if (!head) {
                         head = m;
                         tail = m;

@@ -44,6 +44,37 @@ void team_update_stats(Team *t, int my_score, int opp_score) {
     }
 }
 
+void team_reset_stats(Team *head) {
+    Team *curr = head;
+    while (curr) {
+        curr->ranking_points = 0;
+        curr->matches_played = 0;
+        curr->wins = 0;
+        curr->ties = 0;
+        curr->losses = 0;
+        curr->total_score = 0;
+        curr = curr->next;
+    }
+}
+
+void team_rebuild_stats_from_matches(Team *teams, Match *matches) {
+    if (!teams) return;
+
+    team_reset_stats(teams);
+
+    Match *curr = matches;
+    while (curr) {
+        if (curr->status == MATCH_PLAYED) {
+            Team *red_team = team_find(teams, curr->red_team_id);
+            Team *blue_team = team_find(teams, curr->blue_team_id);
+
+            if (red_team) team_update_stats(red_team, curr->red_score, curr->blue_score);
+            if (blue_team) team_update_stats(blue_team, curr->blue_score, curr->red_score);
+        }
+        curr = curr->next;
+    }
+}
+
 void team_free_list(Team *head) {
     Team *curr = head;
     while (curr) {

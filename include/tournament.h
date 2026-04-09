@@ -69,6 +69,8 @@ Team *team_create(int id, const char *name);
 Team *team_find(Team *head, int id);
 void team_print_all(Team *head);
 void team_update_stats(Team *t, int my_score, int opp_score);
+void team_reset_stats(Team *head);
+void team_rebuild_stats_from_matches(Team *teams, Match *matches);
 void team_free_list(Team *head);
 
 /* Match functions (match.c) */

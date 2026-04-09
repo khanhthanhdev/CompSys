@@ -1,5 +1,25 @@
 #include "../include/tournament.h"
 
+static void discard_line(void) {
+    int ch;
+    while ((ch = getchar()) != '\n' && ch != EOF) {
+    }
+}
+
+static int read_int(const char *prompt, int *value) {
+    if (prompt) {
+        printf("%s", prompt);
+    }
+
+    if (scanf("%d", value) != 1) {
+        discard_line();
+        return 0;
+    }
+
+    discard_line();
+    return 1;
+}
+
 void print_menu(void) {
     printf("\n========================================\n");
     printf("   ROBOTICS TOURNAMENT MANAGEMENT SYSTEM\n");
@@ -29,38 +49,79 @@ int main(void) {
 
     while (1) {
         print_menu();
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');
+        if (!read_int(NULL, &choice)) {
             printf("Invalid input. Please enter a number.\n");
             continue;
         }
 
         switch (choice) {
-            case 1:
-                teams = file_load_teams(TEAMS_FILE, &team_count);
+            case 1: {
+                int loaded_team_count;
+                Team *loaded_teams = file_load_teams(TEAMS_FILE, &loaded_team_count);
+
+                if (loaded_team_count < 0) {
+                    printf("Failed to load teams. Keeping existing data.\n");
+                    break;
+                }
+
+                team_free_list(teams);
+                teams = loaded_teams;
+                team_count = loaded_team_count;
+
+                if (teams && matches) {
+                    team_rebuild_stats_from_matches(teams, matches);
+                }
+
                 printf("Loaded %d teams.\n", team_count);
                 break;
-            case 2:
-                matches = file_load_matches(MATCHES_FILE, &match_count);
+            }
+            case 2: {
+                int loaded_match_count;
+                Match *loaded_matches = file_load_matches(MATCHES_FILE, &loaded_match_count);
+
+                if (loaded_match_count < 0) {
+                    printf("Failed to load matches. Keeping existing data.\n");
+                    break;
+                }
+
+                queue_free(&queue);
+                match_free_list(matches);
+                matches = loaded_matches;
+                match_count = loaded_match_count;
+
                 queue_build_pending(&queue, matches);
+                if (teams) {
+                    team_rebuild_stats_from_matches(teams, matches);
+                }
                 printf("Loaded %d matches (%d pending).\n", match_count, queue.size);
                 break;
+            }
             case 3: {
                 if (!teams) {
                     printf("No teams loaded. Please import teams first (option 1).\n");
                     break;
                 }
-                Match *m = queue_dequeue(&queue);
+
+                if (!matches) {
+                    printf("No matches loaded. Please import the schedule first (option 2).\n");
+                    break;
+                }
+
+                Match *m = queue_peek(&queue);
                 if (!m) {
                     printf("All matches have been played.\n");
                 } else {
                     int red_score, blue_score;
                     printf("Match %d: ", m->match_num);
                     match_print_one(m, teams);
-                    printf("Enter RED score: ");
-                    scanf("%d", &red_score);
-                    printf("Enter BLUE score: ");
-                    scanf("%d", &blue_score);
+
+                    if (!read_int("Enter RED score: ", &red_score) ||
+                        !read_int("Enter BLUE score: ", &blue_score)) {
+                        printf("Invalid score input. Match not recorded.\n");
+                        break;
+                    }
+
+                    queue_dequeue(&queue);
                     match_enter_score(m, teams, red_score, blue_score);
                     printf("Score recorded.\n");
                 }

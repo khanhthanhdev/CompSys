@@ -45,7 +45,7 @@ int queue_is_empty(MatchQueue *q) {
 }
 
 void queue_build_pending(MatchQueue *q, Match *head) {
-    queue_init(q);
+    queue_free(q);
     Match *curr = head;
     while (curr) {
         if (curr->status == MATCH_PENDING) {
