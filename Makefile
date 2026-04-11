@@ -21,7 +21,12 @@ test: $(TARGET) $(TEST_CORE)
 	./$(TEST_CORE)
 	sh tests/run_integration.sh $(abspath $(TARGET)) $(CURDIR)
 
+report-tests: $(TARGET)
+	sh tests/run_report_cases.sh $(abspath $(TARGET)) $(CURDIR)
+
+test-reports: report-tests
+
 clean:
 	rm -f $(OBJ) $(TARGET)
 
-.PHONY: all clean
+.PHONY: all clean test report-tests test-reports

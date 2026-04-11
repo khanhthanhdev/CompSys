@@ -477,34 +477,37 @@ void queue_enqueue(MatchQueue *q, Match *m) {
 
 ## 4. Testing
 
-### 4.1 Test Cases
+### 4.1 Automated Report Cases
 
-| Test ID | Feature | Input | Expected Output | Status |
-|---------|---------|-------|-----------------|--------|
-| TC-01 | Import Teams | Option 1, valid teams.csv | "Loaded N teams" | PASS |
-| TC-02 | Import Teams | Option 1, missing file | "Warning: Cannot open..." | PASS |
-| TC-03 | Import Schedule | Option 2, valid matches.csv | "Loaded N matches (X pending)" | PASS |
-| TC-04 | Play Match | Option 3, teams not loaded | "No teams loaded..." | PASS |
-| TC-05 | Play Match | Option 3, empty queue | "All matches have been played" | PASS |
-| TC-06 | Play Match | Option 3, valid scores | "Score recorded" | PASS |
-| TC-07 | View Schedule | Option 4 | Display all matches with status | PASS |
-| TC-08 | View Rankings | Option 5 | Display sorted standings | PASS |
-| TC-09 | Export Rankings | Option 6 | "Rankings exported to..." | PASS |
-| TC-10 | Exit | Option 7 | "Goodbye!" + files saved | PASS |
-| TC-11 | Invalid Input | Non-numeric menu choice | "Invalid input. Please enter a number." | PASS |
-| TC-12 | Invalid Option | Menu choice 99 | "Invalid option." | PASS |
+The report-level CLI checks are automated in `tests/run_report_cases.sh`.
+They focus on import robustness, menu validation, and score-entry guardrails.
+
+**Screenshot summary:** [fig/fig5_report_tests.svg](fig/fig5_report_tests.svg)
+
+| Test ID | Feature | Input / Fixture | Expected Console Output | Status |
+|---------|---------|-----------------|-------------------------|--------|
+| TC-01 | Import Teams | `1 -> 7` with normal `data/teams.csv` | `Loaded 10 teams.` | PASS |
+| TC-02 | Import Teams Missing File | `1 -> 7` with `data/teams.csv` absent | `Warning: Cannot open data/teams.csv` and `Failed to load teams. Keeping existing data.` | PASS |
+| TC-03 | Import Teams Malformed Row | `1 -> 7` with malformed team row like `bad,row` | `Warning: Skipping malformed row: bad,row` and `Loaded 2 teams.` | PASS |
+| TC-04 | Import Schedule | `2 -> 7` with normal `data/matches.csv` | `Loaded 20 matches (3 pending).` | PASS |
+| TC-05 | Import Schedule Missing File | `2 -> 7` with `data/matches.csv` absent | `Warning: Cannot open data/matches.csv` and `Failed to load matches. Keeping existing data.` | PASS |
+| TC-06 | Import Schedule Malformed Row | `2 -> 7` with malformed match row like `bad,row` | `Warning: Skipping malformed row: bad,row` and `Loaded 2 matches (1 pending).` | PASS |
+| TC-07 | Invalid Main Menu Input | `abc -> 7` | `Invalid input. Please enter a number.` | PASS |
+| TC-08 | Play Match Without Teams | `3 -> 7` | `No teams loaded. Please import teams first (option 1).` | PASS |
+| TC-09 | Play Match Without Schedule | `1 -> 3 -> 7` with no `data/matches.csv` fixture | `No matches loaded. Please import the schedule first (option 2).` | PASS |
+| TC-10 | Invalid Score Input | `1 -> 2 -> 3 -> a -> 7` | `Invalid score input. Match not recorded.` | PASS |
 
 ---
 
 ### 4.2 Sample Test Execution
 
 **Test: Import Teams (TC-01)**
-```
+```text
 $ ./tournament
-Welcome to FTC Tournament Manager!
+Welcome to Robotics Tournament Manager!
 
 ========================================
-   FTC TOURNAMENT MANAGEMENT SYSTEM
+   ROBOTICS TOURNAMENT MANAGEMENT SYSTEM
 ========================================
  [1] Import Teams from CSV
  [2] Import Match Schedule from CSV
@@ -518,30 +521,24 @@ Select option: 1
 Loaded 10 teams.
 ```
 
-**Test: Play Match (TC-06)**
-```
-Select option: 3
-Match 1: Red Dragons (RED) vs Blue Thunder (BLUE)
-Enter RED score: 100
-Enter BLUE score: 56
-Score recorded.
+**Test: Import Schedule Malformed Row (TC-06)**
+```text
+Select option: 2
+Warning: Skipping malformed row: bad,row
+Loaded 2 matches (1 pending).
 ```
 
-**Test: View Rankings (TC-08)**
-```
-Select option: 5
-
-Rank   Team ID  Name                 RP    W     T    L     Total Score
-============================================================================
-1      1001     Red Dragons          3     1     0    0     100
-2      1002     Blue Thunder         0     0     0    1     56
-...
-```
-
-**Test: Invalid Input (TC-11)**
-```
+**Test: Invalid Main Menu Input (TC-07)**
+```text
 Select option: abc
 Invalid input. Please enter a number.
+```
+
+**Test: Invalid Score Input (TC-10)**
+```text
+Select option: 3
+Match 3: Blue Thunder (RED) vs Green Force (BLUE)
+Enter RED score: Invalid score input. Match not recorded.
 ```
 
 ---
